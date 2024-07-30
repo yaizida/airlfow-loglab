@@ -1,4 +1,3 @@
-from datetime import datetime
 import logging
 
 from airflow.decorators import dag, task
@@ -20,33 +19,41 @@ def test_1c_dag():
     @task
     def test_1c_task():
         import os
-
-        from pymssql import connect
         from dotenv import load_dotenv
 
         load_dotenv()
-        db_server = os.getenv('DB_SERVER')
-        db_user = os.getenv('DB_USER')
-        db_password = os.getenv('DB_PASSWORD')
-        db_name = os.getenv('DB_NAME')
+        server = os.getenv('DB_SERVER')
+        username = os.getenv('DB_USER')
+        password = os.getenv('DB_PASSWORD')
+        database = os.getenv('DB_NAME')
 
-        # connect to the SQL Server
-        try:
-            conn = connect(server=db_server, user=db_user,
-                           password=db_password, database=db_name,
-                           )
-        except Exception as e:
-            logging.error(f'Error connecting to the SQL Server database: {e}')
+        import pyodbc
 
+        # Строка подключения
+        conn_str = (
+            r'DRIVER={SQL Server};'
+            r'SERVER=' + server + ';'
+            r'DATABASE=' + database + ';'
+            r'UID=' + username + ';'
+            r'PWD=' + password + ';'
+        )
+
+        # Создание подключения
+        conn = pyodbc.connect(conn_str)
+
+        # Создание курсора
         cursor = conn.cursor()
 
-        cursor.execute('SELECT 1')
+        # Выполнение запроса
+        cursor.execute("SELECT 1")
 
+        # Получение результатаca
         result = cursor.fetchone()
 
-        for row in result:
-            print(row)
+        # Вывод результата
+        print(result)
 
+        # Закрытие курсора и подключения
         cursor.close()
         conn.close()
 

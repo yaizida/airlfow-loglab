@@ -2,6 +2,9 @@ import os
 import io
 import csv
 import logging
+import pprint
+import tracemalloc
+import time
 
 from pymssql import connect, Connection
 from dotenv import load_dotenv
@@ -10,7 +13,7 @@ from memory_profiler import profile
 
 
 @profile
-def create_connection() -> None:
+def create_connection() -> csv.writer:
     # read data from .env file
     load_dotenv()
     db_server = os.getenv('DB_SERVER')
@@ -41,18 +44,38 @@ def create_connection() -> None:
 
     columns = [x[0] for x in cursor.description]
 
-    # Create or open the CSV file
-    with open(r"C:\Users\nikita.b\Desktop\Dev\LogLab\airlfow-loglab\dags\MyTable.csv", 'w', newline='') as csvfile:
-        csvfile.write(';'.join(columns) + '\n')
-        for row in rows:
-            csvfile.write(';'.join([str(x) if str(x)[:2] != "b'" else f'"{str(x)}"' for x in row]) + '\n')
+    s_buf = io.StringIO()
+    writer = csv.writer(s_buf)
+
+    writer.writerow(columns)
+
+    for row in rows:
+        writer.writerow([str(x) if str(x)[:2] != "b'" else f'"{str(x)}"' for x in row])
+
+    s_buf.seek(0)
 
     cursor.close()
     conn.close()
 
-    return
+    return writer
 
 
 if __name__ == '__main__':
-    create_connection()
+    tracemalloc.start()
+    start_time = time.time()
+    new_writer = create_connection()
+    snapshot = tracemalloc.take_snapshot()
+    top_stats = snapshot.statistics('traceback')
+
+    print("Аллокация памяти:")
+
+    for stat in top_stats[:5]:
+        print(stat)
+
+    # Остановка отслеживания памяти
+    tracemalloc.stop()
+
+    end_time = time.time()
+    print(f"Время выполнения: {end_time - start_time:.4f} секунд")
+    pprint.pprint(new_writer)
     print("CSV file created successfully.")  # Indicate successful export
